@@ -1,4 +1,4 @@
 CSharpCoverage
 ==============
 
-An open source code coverage tool for Mono, based on SharpCover
+An open source code coverage tool for Linux and [Mono](https://github.com/mono/mono), based on SharpCover.
