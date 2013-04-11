@@ -13,7 +13,7 @@ An open source code coverage tool for Linux and [Mono](https://github.com/mono/m
 
 ##Usage
 
- * After [building](#tool-build) run `SharpCover.exe instrument config.json` where `config.json` is a file that reflects the following format, most options
+ * After [building](#tool-build) run `SharpCover.exe instrument json` where `json` is a string or file with contents that reflects the following format, most options
  are optional:
 
 ```json
