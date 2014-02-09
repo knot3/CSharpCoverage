@@ -1,0 +1,50 @@
+#!/bin/bash
+
+if [ "x$3" = "x" ]
+then
+	echo "Usage: coverage ASSEMBLY NUNIT_DLL HTML_DIR"
+	exit 1
+fi
+
+export ASS=$1
+export DLL=$2
+export HTML=$3
+
+SCRIPT_PATH="${BASH_SOURCE[0]}";
+if ([ -h "${SCRIPT_PATH}" ]) then
+  while([ -h "${SCRIPT_PATH}" ]) do SCRIPT_PATH=`readlink "${SCRIPT_PATH}"`; done
+fi
+pushd . > /dev/null
+cd `dirname ${SCRIPT_PATH}` > /dev/null
+SCRIPT_PATH=`pwd`;
+popd  > /dev/null
+
+cd $SCRIPT_PATH
+cd ..
+
+cat > coverageConfig.json << EOT
+{
+    "assemblies": [
+        "$ASS"
+    ],
+    "typeExclude": ".*(Helper|__AnonType).*",
+    "methodExclude": ".*(Draw|Update).*",
+    "methodBodyExcludes": [
+        {
+            "method": "System.Void Gaillard.SharpCover.Program::Instrument(Mono.Cecil.Cil.Instruction,Mono.Cecil.MethodReference,Mono.Cecil.MethodDefinition,Mono.Cecil.Cil.ILProcessor,System.String,Gaillard.SharpCover.Program/InstrumentConfig,System.IO.TextWriter,System.Int32&)",
+            "lines": ["handler.FilterStart = pathParamLoadInstruction;"]
+        }
+    ]
+}
+EOT
+
+mono Gaillard.SharpCover/bin/Debug/SharpCover.exe instrument coverageConfig.json
+
+mono /usr/lib/nunit/nunit-console.exe $DLL > nunit-output 2>&1
+
+mono Gaillard.SharpCover/bin/Debug/SharpCover.exe check | sed 's@was@is@gm' > result.txt
+
+scripts/coverage-html
+
+rsync -zav out/ $HTML/
+rm -rf out

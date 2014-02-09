@@ -1,0 +1,166 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use MIME::Base64;
+
+sub percent {
+	my ($num) = @_;
+	return sprintf '%.f%%', 100 * $num;
+}
+
+sub reformat {
+	return map {
+		s/System.Void//gm;
+		s/System.Collections.Generic.//gm;
+		s/System.Collections.//gm;
+		s/System.//gm;
+		s/Microsoft.Xna.Framework.//gm;
+		s/\s*[,]\s*/, /gm;
+		s/Knot3\.[A-Za-z]+\.([A-Za-z]+[^a-zA-Z])/$1/gm;
+		s/.ctor/Constructor/gm;
+		s/Int32/int/gm;
+		s/Single/float/gm;
+		$_
+	} @_;
+}
+
+sub _hash {
+	my $h = encode_base64($_[0]);
+	$h =~ s/[^a-zA-Z0-9]//gm;
+	return $h;
+}
+
+open my $f, "<", "coverageResults.txt";
+my @lines = <$f>;
+close $f;
+
+open $f, "<", "template/head.php";
+my @head = <$f>;
+close $f;
+open $f, "<", "template/tail.php";
+my @tail = <$f>;
+close $f;
+
+my %types = ();
+
+foreach my $line (@lines) {
+	if ($line =~ /^(MISS|HIT)\s.*?Method: (.*)/) {
+		my ($hit, $str) = ($1, $2);
+		$hit = $hit eq "HIT" ? 1 : 0;
+
+		if ($str =~ /^([^\s]+)\s([^:]+)::([^(]+)\(([^)]*)\), (.*)/) {
+			my ($return, $type, $method, $params, $extra) = ($1,$2,$3,$4,$5);
+
+			$types{$type} ||= [];
+			push @{$types{$type}}, [ $hit, $return, $method, $params, $extra ];
+		}
+	}
+}
+
+my @html = ();
+my %html_types = ();
+
+foreach my $type (sort keys %types) {
+
+	my $hits = 0;
+	my $misses = 0;
+	my %methods = ();
+	foreach my $entry (@{$types{$type}}) {
+		my ($ishit, $return, $method, $params, $extra) = @$entry;
+
+		if ($ishit) { $hits++; }
+		else { $misses++; }
+
+		my $signature = $return . ' ' . $method . '(' . $params . ')';
+		$methods{$signature} ||= [];
+		push @{$methods{$signature}}, [ $ishit, $return, $method, $params, $extra ];
+	}
+
+	my $coverage = $hits+$misses > 0 ? $hits/($hits+$misses) : 1;
+
+	$html_types{$type} ||= [];
+	push @{$html_types{$type}}, q[
+		<h3>] . $type . q[</h3>
+	];
+
+	my @html_methods = ();
+	foreach my $methodkey (sort keys %methods) {
+
+		my @html_method_code = ();
+
+		my $hits = 0;
+		my $misses = 0;
+		my ($return, $method, $params) = ('','','');
+		foreach my $methodentry (@{$methods{$methodkey}}) {
+			my ($ishit, $_return, $_method, $_params, $extra) = @$methodentry;
+			if ($ishit) { $hits++; }
+	                else { $misses++; }
+			($return, $method, $params) = ($_return, $_method, $_params);
+#			print $extra. "\n";
+
+			my $class = $ishit ? 'hit' : 'miss';
+			push @html_method_code, q[
+	                        <tr class='cov-].$class.q['>
+	                        <td>].$extra.q[</td>
+	                        </tr>
+	                ];
+		}
+
+		my $coverage = $hits+$misses > 0 ? $hits/($hits+$misses) : 1;
+
+		my $class = $coverage > 0.8 ? 'hit' : $coverage < 0.2 ? 'miss' : 'half';
+
+		push @html_methods, q[
+			<tr class='cov-].$class.q['>
+			<td>].$return.q[</td>
+			<td>].$method.q[</td>
+			<td>].$params.q[</td>
+			<td><a href='coverage/] . _hash($type) . q[.php#] . _hash($methodkey) . q['>]. percent($coverage) .q[</a></td>
+			</tr>
+		];
+
+		push @{$html_types{$type}}, q[
+                        <div class='part' id='] . _hash($methodkey) . q['>
+                        <h4>] . $methodkey . q[ (] . percent($coverage) . q[)</h4>
+                        <table class='flat-table cov'>
+                        <tr><th style='min-width: 700px;'>Code</th></tr>
+                ];
+		push @{$html_types{$type}}, @html_method_code;
+		push @{$html_types{$type}}, q[
+                        </table>
+                        </div>
+                ];
+
+	}
+
+	if (scalar(keys %methods) > 0 && @{$methods{(keys %methods)[0]}}) {
+		push @html, q[
+			<div class='part'>
+			<h4>] . $type . q[ (] . percent($coverage) . q[)</h4>
+			<table class='flat-table cov'>
+			<tr><th>Return Value</th><th>Method</th><th>Parameters</th><th>Coverage</th></tr>
+		];
+
+		push @html, @html_methods;
+
+		push @html, q[
+			</table>
+			</div>
+		];
+	}
+}
+
+@html = reformat(@html);
+
+open my $f, ">", 'out/coverage.php';
+print $f join("\n", @head, @html, @tail);
+close $f;
+
+foreach my $type (sort keys %html_types) {
+	my @html = reformat(@{$html_types{$type}});
+	open my $f, ">", 'out/coverage/' . _hash($type) . '.php';
+	print $f join("\n", @head, @html, @tail);
+	close $f;
+}
