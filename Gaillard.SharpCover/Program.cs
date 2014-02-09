@@ -1,12 +1,15 @@
 using System;
+
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+
 using Newtonsoft.Json.Linq;
 
 [assembly: AssemblyVersion("1.0.2.*")]
@@ -15,7 +18,7 @@ namespace Gaillard.SharpCover
 {
     public static class Program
     {
-        public const string RESULTS_FILENAME = "coverageResults.txt", MISS_PREFIX = "MISS ! ", HITS_FILENAME_PREFIX = "coverageHits";
+        public const string RESULTS_FILENAME = "coverageResults.txt", MISS_PREFIX = "MISS ! ", HITS_FILENAME_PREFIX = "coverageHits", HIT_PREFIX = "HIT ! ";
         private const string KNOWNS_FILENAME = "coverageKnowns";
         private static readonly MethodInfo countMethodInfo = typeof(Counter).GetMethod("Count");
 
@@ -43,7 +46,6 @@ namespace Gaillard.SharpCover
                 TypeExclude = ((string)config.SelectToken("typeExclude")) ?? ".^";//any char and THEN start of line matches nothing
                 MethodInclude = ((string)config.SelectToken("methodInclude")) ?? ".*";
                 MethodExclude = ((string)config.SelectToken("methodExclude")) ?? ".^";//any char and THEN start of line matches nothing
-
 
                 foreach (var methodBodyExclude in config.SelectToken("methodBodyExcludes") ?? new JArray()) {
                     var method = (string)methodBodyExclude.SelectToken("method", true);
@@ -228,7 +230,7 @@ namespace Gaillard.SharpCover
             using (var resultsWriter = new StreamWriter(RESULTS_FILENAME)) {//overwrites
                 foreach (var knownLine in File.ReadLines(KNOWNS_FILENAME)) {
                     if (hits.Contains(knownIndex))
-                        resultsWriter.WriteLine(knownLine);
+                        resultsWriter.WriteLine(HIT_PREFIX + knownLine);
                     else {
                         resultsWriter.WriteLine(MISS_PREFIX + knownLine);
                         ++missCount;
