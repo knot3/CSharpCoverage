@@ -44,6 +44,7 @@ mono /usr/lib/nunit/nunit-console.exe $DLL > nunit-output 2>&1
 
 mono Gaillard.SharpCover/bin/Debug/SharpCover.exe check | sed 's@was@is@gm' > result.txt
 
+mkdir -p out/coverage
 scripts/coverage-html
 
 rsync -zav out/ $HTML/
