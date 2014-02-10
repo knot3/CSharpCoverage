@@ -22,6 +22,8 @@ sub reformat {
 		s/.ctor/Constructor/gm;
 		s/Int32/int/gm;
 		s/Single/float/gm;
+		s/Boolean/bool/gm;
+		s/String/string/gm;
 		$_
 	} @_;
 }
@@ -59,8 +61,11 @@ foreach my $line (@lines) {
 	}
 }
 
-my @html = ();
-my %html_types = ();
+my @html_overview = ();
+my @html_classes = ();
+my %html_bytecode = ();
+my $overall_hits = 0;
+my $overall_misses = 0;
 
 foreach my $type (sort keys %types) {
 
@@ -77,11 +82,13 @@ foreach my $type (sort keys %types) {
 		$methods{$signature} ||= [];
 		push @{$methods{$signature}}, [ $ishit, $return, $method, $params, $extra ];
 	}
+	$overall_hits += $hits;
+	$overall_misses += $misses;
 
 	my $coverage = $hits+$misses > 0 ? $hits/($hits+$misses) : 1;
 
-	$html_types{$type} ||= [];
-	push @{$html_types{$type}}, q[
+	$html_bytecode{$type} ||= [];
+	push @{$html_bytecode{$type}}, q[
 		<h3>] . $type . q[</h3>
 	];
 
@@ -121,14 +128,14 @@ foreach my $type (sort keys %types) {
 			</tr>
 		];
 
-		push @{$html_types{$type}}, q[
+		push @{$html_bytecode{$type}}, q[
                         <div class='part' id='] . _hash($methodkey) . q['>
                         <h4>] . $methodkey . q[ (] . percent($coverage) . q[)</h4>
                         <table class='flat-table cov'>
                         <tr><th style='min-width: 700px;'>Code</th></tr>
                 ];
-		push @{$html_types{$type}}, @html_method_code;
-		push @{$html_types{$type}}, q[
+		push @{$html_bytecode{$type}}, @html_method_code;
+		push @{$html_bytecode{$type}}, q[
                         </table>
                         </div>
                 ];
@@ -136,21 +143,49 @@ foreach my $type (sort keys %types) {
 	}
 
 	if (scalar(keys %methods) > 0 && @{$methods{(keys %methods)[0]}}) {
-		push @html, q[
-			<div class='part'>
+		push @html_classes, q[
+			<div class='part' id='] . _hash($type) . q['>
 			<h4>] . $type . q[ (] . percent($coverage) . q[)</h4>
 			<table class='flat-table cov'>
 			<tr><th>Return Value</th><th>Method</th><th>Parameters</th><th>Coverage</th></tr>
 		];
 
-		push @html, @html_methods;
+		push @html_classes, @html_methods;
 
-		push @html, q[
+		push @html_classes, q[
 			</table>
 			</div>
 		];
+
+		my $class = $coverage > 0.8 ? 'hit' : $coverage < 0.2 ? 'miss' : 'half';
+
+		push @html_overview, q[
+			<!-- ] . $type . q[ -->
+			<tr class='cov-].$class.q['>
+			<td>].$type.q[</td>
+			<td><a href='#] . _hash($type) . q['>]. percent($coverage) .q[</a></td>
+			</tr>
+		];
 	}
 }
+
+my $overall_coverage = $overall_hits+$overall_misses > 0 ? $overall_hits/($overall_hits+$overall_misses) : 1;
+
+@html_overview = (
+	q[
+		<div class='part'>
+		<h4>Overall Coverage: ] . (percent($overall_coverage*1000)/1000) . q[%</h4>
+		<table class='flat-table cov'>
+		<tr><th>Type</th><th>Coverage</th></tr>
+	],
+	(sort @html_overview),
+	q[
+		</table>
+		</div>
+	],
+);
+
+my @html = (@html_overview, @html_classes);
 
 @html = reformat(@html);
 
@@ -158,8 +193,8 @@ open my $f, ">", 'out/coverage.php';
 print $f join("\n", @head, @html, @tail);
 close $f;
 
-foreach my $type (sort keys %html_types) {
-	my @html = reformat(@{$html_types{$type}});
+foreach my $type (sort keys %html_bytecode) {
+	my @html = reformat(@{$html_bytecode{$type}});
 	open my $f, ">", 'out/coverage/' . _hash($type) . '.php';
 	print $f join("\n", @head, @html, @tail);
 	close $f;
