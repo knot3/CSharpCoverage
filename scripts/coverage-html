@@ -24,6 +24,8 @@ sub reformat {
 		s/Single/float/gm;
 		s/Boolean/bool/gm;
 		s/String/string/gm;
+		s/VConstructor2/Vector2/gm;
+		s/VConstructor3/Vector3/gm;
 		$_
 	} @_;
 }
@@ -67,7 +69,7 @@ my %html_bytecode = ();
 my $overall_hits = 0;
 my $overall_misses = 0;
 
-foreach my $type (sort keys %types) {
+foreach my $type (sort reformat keys %types) {
 
 	my $hits = 0;
 	my $misses = 0;
@@ -159,8 +161,7 @@ foreach my $type (sort keys %types) {
 
 		my $class = $coverage > 0.8 ? 'hit' : $coverage < 0.2 ? 'miss' : 'half';
 
-		push @html_overview, q[
-			<!-- ] . $type . q[ -->
+		push @html_overview, q[ <!-- ] . $type . q[ -->
 			<tr class='cov-].$class.q['>
 			<td>].$type.q[</td>
 			<td><a href='#] . _hash($type) . q['>]. percent($coverage) .q[</a></td>
@@ -178,7 +179,7 @@ my $overall_coverage = $overall_hits+$overall_misses > 0 ? $overall_hits/($overa
 		<table class='flat-table cov'>
 		<tr><th>Type</th><th>Coverage</th></tr>
 	],
-	(sort @html_overview),
+	sort({ lc($a) cmp lc($b) } reformat(@html_overview)),
 	q[
 		</table>
 		</div>
