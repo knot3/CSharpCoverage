@@ -91,11 +91,15 @@ namespace Gaillard.SharpCover
             }
 
             var lineNum = -1;
-            if (instruction.SequencePoint != null)
+            string fileName = "";
+            if (instruction.SequencePoint != null) {
                 lineNum = instruction.SequencePoint.StartLine;
+                fileName = instruction.SequencePoint.Document.Url;
+            }
 
             var line = string.Join(", ",
                                    "Method: " + method.FullName,
+                                   "File: " + fileName,
                                    "Line: " + lineNum,
                                    "Offset: " + instruction.Offset,
                                    "Instruction: " + instruction);

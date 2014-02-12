@@ -4,10 +4,34 @@ use strict;
 use warnings;
 
 use MIME::Base64;
+use Digest::MD5 qw(md5 md5_hex md5_base64);
 
 sub percent {
 	my ($num) = @_;
 	return sprintf '%.f%%', 100 * $num;
+}
+
+my %file_cache = ();
+
+sub find_line {
+	my ($file, $line, $file_cache_ref) = @_;
+	my $lines = [];
+	if ($file_cache_ref->{$file}) {
+		$lines = $file_cache{$file};
+	}
+	else {
+		open my $f, "<", $file;
+		$lines = $file_cache_ref->{$file} = [ <$f> ];
+		close $f;
+	}
+	return $lines->[$line - 1];
+}
+
+sub codeformat {
+	my ($code) = @_;
+	$code =~ s/\t/    /gm;
+	$code =~ s/[ ]/&nbsp;/gm;
+	return $code;
 }
 
 sub reformat {
@@ -31,8 +55,9 @@ sub reformat {
 }
 
 sub _hash {
-	my $h = encode_base64($_[0]);
+	my $h = md5_hex(encode_base64($_[0]));
 	$h =~ s/[^a-zA-Z0-9]//gm;
+	$h =~ s/^(.{10}).*/$1/gm;
 	return $h;
 }
 
@@ -104,15 +129,33 @@ foreach my $type (sort reformat keys %types) {
 		my ($return, $method, $params) = ('','','');
 		foreach my $methodentry (@{$methods{$methodkey}}) {
 			my ($ishit, $_return, $_method, $_params, $extra) = @$methodentry;
+#			print $extra. "\n";
+
+			my %decoded_extra =
+				map {
+					my @pair = split(/[:]\s*/, $_);
+					my $key = lc shift @pair;
+					($key, join(":", @pair))
+				}
+				split(/[,]\s+/, $extra);
+			$decoded_extra{code} = find_line($decoded_extra{file}, $decoded_extra{line}, \%file_cache);
+			$decoded_extra{file} =~ s/^.*\/([^\/]+)$/$1/gm;
+			$decoded_extra{instruction} =~ s/IL[^:]+[:]//gm;
+
+			next if $decoded_extra{line} eq "-1";
+
 			if ($ishit) { $hits++; }
 	                else { $misses++; }
 			($return, $method, $params) = ($_return, $_method, $_params);
-#			print $extra. "\n";
 
 			my $class = $ishit ? 'hit' : 'miss';
 			push @html_method_code, q[
 	                        <tr class='cov-].$class.q['>
-	                        <td>].$extra.q[</td>
+	                        <td class="small">].$decoded_extra{file}.q[</td>
+	                        <td class="small">].$decoded_extra{line}.q[</td>
+	                        <td class="small">].$decoded_extra{offset}.q[</td>
+	                        <!-- <td>].$decoded_extra{instruction}.q[</td> -->
+	                        <td style="min-width: 400px;"><code>] . codeformat($decoded_extra{code}) . q[</code></td>
 	                        </tr>
 	                ];
 		}
@@ -134,7 +177,13 @@ foreach my $type (sort reformat keys %types) {
                         <div class='part' id='] . _hash($methodkey) . q['>
                         <h4>] . $methodkey . q[ (] . percent($coverage) . q[)</h4>
                         <table class='flat-table cov'>
-                        <tr><th style='min-width: 700px;'>Code</th></tr>
+                        <tr>
+				<th>File</th>
+				<th>Line</th>
+				<th>Offset</th>
+				<!--<th>Instruction</th>-->
+				<th>Code</th>
+			</tr>
                 ];
 		push @{$html_bytecode{$type}}, @html_method_code;
 		push @{$html_bytecode{$type}}, q[
