@@ -27,7 +27,7 @@ cat > coverageConfig.json << EOT
     "assemblies": [
         "$ASS"
     ],
-    "typeExclude": ".*(Helper|__AnonType|Program|Development|Widgets|Screens|RenderEffects|GameObjects|ShaderHelper|ModelHelper).*",
+    "typeExclude": ".*(Helper|__AnonType|__AnonStorey|__Iterator|Program|Development|Widgets|Screens|RenderEffects|GameObjects|ShaderHelper|ModelHelper|(Input....)).*",
     "methodExclude": ".*(Draw|Update).*",
     "methodBodyExcludes": [
         {
