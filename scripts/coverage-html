@@ -46,10 +46,12 @@ sub reformat {
 		s/.ctor/Constructor/gm;
 		s/Int32/int/gm;
 		s/Single/float/gm;
-		s/Boolean/bool/gm;
+		s/Boolean([^A-Za-z0-9])/bool$1/gm;
 		s/String/string/gm;
 		s/VConstructor2/Vector2/gm;
 		s/VConstructor3/Vector3/gm;
+		s/[`]1/&lt;T&gt;/gm;
+		s/[`]2/&lt;T,U&gt;/gm;
 		$_
 	} @_;
 }
