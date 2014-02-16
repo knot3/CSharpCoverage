@@ -27,8 +27,8 @@ cat > coverageConfig.json << EOT
     "assemblies": [
         "$ASS"
     ],
-    "typeExclude": ".*(Helper|m__|__AnonType|__AnonStorey|__Iterator|Program|Development|Widgets|Screens|RenderEffects|GameObjects|ShaderHelper|ModelHelper|(Input....)|Knot3Game).*",
-    "methodExclude": ".*(Draw|Update).*",
+    "typeExclude": ".*(Helper|__AnonType|__AnonStorey|__Iterator|Program|Development|Widgets|Screens|RenderEffects|GameObjects|ShaderHelper|ModelHelper|(Input....)|Knot3Game).*",
+    "methodExclude": ".*(m__|(IEnumerable.GetEnumerator)|Draw|Update).*",
     "methodBodyExcludes": [
         {
             "method": "System.Void Gaillard.SharpCover.Program::Instrument(Mono.Cecil.Cil.Instruction,Mono.Cecil.MethodReference,Mono.Cecil.MethodDefinition,Mono.Cecil.Cil.ILProcessor,System.String,Gaillard.SharpCover.Program/InstrumentConfig,System.IO.TextWriter,System.Int32&)",
