@@ -36,10 +36,10 @@ sub codeformat {
 
 sub reformat {
 	return map {
-		s/System.Void//gm;
-		s/System.Collections.Generic.//gm;
-		s/System.Collections.//gm;
-		s/System.//gm;
+		s/System\.Void//gm;
+		s/System\.Collections.Generic.//gm;
+		s/System\.Collections.//gm;
+		s/System\.//gm;
 		s/Microsoft.Xna.Framework.//gm;
 		s/\s*[,]\s*/, /gm;
 		s/Knot3\.[A-Za-z]+\.([A-Za-z]+[^a-zA-Z])/$1/gm;
@@ -61,6 +61,20 @@ sub _hash {
 	$h =~ s/[^a-zA-Z0-9]//gm;
 	$h =~ s/^(.{10}).*/$1/gm;
 	return $h;
+}
+
+sub decode_extra {
+	my ($extra) = @_;
+	my %decoded_extra =
+		map {
+			my @pair = split(/[:]\s*/, $_);
+			my $key = lc shift @pair;
+			($key, join(":", @pair))
+		} split(/[,]\s+/, $extra);
+	$decoded_extra{code} = find_line($decoded_extra{file}, $decoded_extra{line}, \%file_cache);
+	$decoded_extra{file} =~ s/^.*\/([^\/]+)$/$1/gm;
+	$decoded_extra{instruction} =~ s/IL[^:]+[:]//gm;
+	return %decoded_extra;
 }
 
 open my $f, "<", "coverageResults.txt";
@@ -98,19 +112,24 @@ my $overall_misses = 0;
 
 foreach my $type (sort reformat keys %types) {
 
-	my $hits = 0;
-	my $misses = 0;
+	my %hit_lines = ();
+	my %missed_lines = ();
 	my %methods = ();
 	foreach my $entry (@{$types{$type}}) {
 		my ($ishit, $return, $method, $params, $extra) = @$entry;
 
-		if ($ishit) { $hits++; }
-		else { $misses++; }
+		my %decoded_extra = decode_extra($extra);
+		next if $decoded_extra{line} eq "-1";
+
+		if ($ishit) { $hit_lines{$decoded_extra{line}}++; }
+                else { $missed_lines{$decoded_extra{line}}++; }
 
 		my $signature = $return . ' ' . $method . '(' . $params . ')';
 		$methods{$signature} ||= [];
 		push @{$methods{$signature}}, [ $ishit, $return, $method, $params, $extra ];
 	}
+	my $hits = scalar keys %hit_lines;
+	my $misses = scalar keys %missed_lines;
 	$overall_hits += $hits;
 	$overall_misses += $misses;
 
@@ -126,28 +145,17 @@ foreach my $type (sort reformat keys %types) {
 
 		my @html_method_code = ();
 
-		my $hits = 0;
-		my $misses = 0;
+		my %hit_lines = ();
+		my %missed_lines = ();
 		my ($return, $method, $params) = ('','','');
 		foreach my $methodentry (@{$methods{$methodkey}}) {
 			my ($ishit, $_return, $_method, $_params, $extra) = @$methodentry;
-#			print $extra. "\n";
 
-			my %decoded_extra =
-				map {
-					my @pair = split(/[:]\s*/, $_);
-					my $key = lc shift @pair;
-					($key, join(":", @pair))
-				}
-				split(/[,]\s+/, $extra);
-			$decoded_extra{code} = find_line($decoded_extra{file}, $decoded_extra{line}, \%file_cache);
-			$decoded_extra{file} =~ s/^.*\/([^\/]+)$/$1/gm;
-			$decoded_extra{instruction} =~ s/IL[^:]+[:]//gm;
-
+			my %decoded_extra = decode_extra($extra);
 			next if $decoded_extra{line} eq "-1";
 
-			if ($ishit) { $hits++; }
-	                else { $misses++; }
+			if ($ishit) { $hit_lines{$decoded_extra{line}}++; }
+	                else { $missed_lines{$decoded_extra{line}}++; }
 			($return, $method, $params) = ($_return, $_method, $_params);
 
 			my $class = $ishit ? 'hit' : 'miss';
@@ -162,7 +170,11 @@ foreach my $type (sort reformat keys %types) {
 	                ];
 		}
 
+		my $hits = scalar keys %hit_lines;
+		my $misses = scalar keys %missed_lines;
 		my $coverage = $hits+$misses > 0 ? $hits/($hits+$misses) : 1;
+
+		next if $hits+$misses == 0;
 
 		my $class = $coverage > 0.8 ? 'hit' : $coverage < 0.2 ? 'miss' : 'half';
 
@@ -170,7 +182,7 @@ foreach my $type (sort reformat keys %types) {
 			<tr class='cov-].$class.q['>
 			<td>].$return.q[</td>
 			<td>].$method.q[</td>
-			<td>].$params.q[</td>
+			<td>].$params  .q[<!--h=].$hits.q[,m=].$misses.q[-->]  .q[</td>
 			<td><a href='coverage/] . _hash($type) . q[.php#] . _hash($methodkey) . q['>]. percent($coverage) .q[</a></td>
 			</tr>
 		];
