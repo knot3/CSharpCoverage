@@ -27,7 +27,7 @@ cat > coverageConfig.json << EOT
     "assemblies": [
         "$ASS"
     ],
-    "typeExclude": ".*(Helper|__AnonType|__AnonStorey|__Iterator|Program|Development|Widgets|Screens|RenderEffects|GameObjects|ShaderHelper|ModelHelper|(Input....)|Knot3Game).*",
+    "typeExclude": ".*(Helper|__AnonType|__AnonStorey|__Iterator|Program|Development|Widgets|Screens|RenderEffects|GameObjects|ShaderHelper|ModelHelper|(Input....)|Knot3Game|(Core.GameScreen)).*",
     "methodExclude": ".*(m__|(IEnumerable.GetEnumerator)|Draw|Update).*",
     "methodBodyExcludes": [
         {
