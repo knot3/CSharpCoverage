@@ -169,7 +169,8 @@ namespace Gaillard.SharpCover
 		    TextWriter writer,
 		    ref int instrumentIndex)
 		{
-			if (!Regex.IsMatch(method.FullName, config.MethodInclude) || Regex.IsMatch(method.FullName, config.MethodExclude)) {
+			if (!Regex.IsMatch(method.FullName, config.MethodInclude) || Regex.IsMatch(method.FullName, config.MethodExclude)
+				|| (method.CustomAttributes.Count() > 0 && method.CustomAttributes[0].Constructor.DeclaringType.ToString().Contains("ExcludeFromCodeCoverage"))) {
 				return;
 			}
 
@@ -205,7 +206,8 @@ namespace Gaillard.SharpCover
 				return;
 			}
 
-			if (!Regex.IsMatch(type.FullName, config.TypeInclude) || Regex.IsMatch(type.FullName, config.TypeExclude)) {
+			if (!Regex.IsMatch(type.FullName, config.TypeInclude) || Regex.IsMatch(type.FullName, config.TypeExclude)
+				|| (type.CustomAttributes.Count() > 0 && type.CustomAttributes[0].Constructor.DeclaringType.ToString().Contains("ExcludeFromCodeCoverage"))) {
 				return;
 			}
 
