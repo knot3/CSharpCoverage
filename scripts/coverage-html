@@ -51,7 +51,7 @@ sub reformat {
 		s/System\.//gm;
 		s/Microsoft.Xna.Framework.//gm;
 		s/\s*[,]\s*/, /gm;
-		s/.ctor/Constructor/gm;
+		s/\.ctor/Constructor/gm;
 		s/Int32/int/gm;
 		s/Single/float/gm;
 		s/Boolean([^A-Za-z0-9])/bool$1/gm;
