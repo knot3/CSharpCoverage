@@ -8,7 +8,9 @@ use Digest::MD5 qw(md5 md5_hex md5_base64);
 
 sub percent {
 	my ($num) = @_;
-	return sprintf '%.f%%', 100 * $num;
+	my $str = sprintf '%.f%%', 100 * $num;
+	$str = "&nbsp;&nbsp;".$str if $num < 0.1;
+	return $str;
 }
 
 my %file_cache = ();
@@ -34,6 +36,13 @@ sub codeformat {
 	return $code;
 }
 
+sub without_packages {
+	return map {
+		s/Knot3\.[A-Za-z]+\.([A-Za-z]+[^a-zA-Z])/$1/gm;
+		$_
+	} @_;
+}
+
 sub reformat {
 	return map {
 		s/System\.Void//gm;
@@ -42,7 +51,6 @@ sub reformat {
 		s/System\.//gm;
 		s/Microsoft.Xna.Framework.//gm;
 		s/\s*[,]\s*/, /gm;
-		s/Knot3\.[A-Za-z]+\.([A-Za-z]+[^a-zA-Z])/$1/gm;
 		s/.ctor/Constructor/gm;
 		s/Int32/int/gm;
 		s/Single/float/gm;
@@ -159,11 +167,11 @@ foreach my $type (sort reformat keys %types) {
 			($return, $method, $params) = ($_return, $_method, $_params);
 
 			my $class = $ishit ? 'hit' : 'miss';
-			push @html_method_code, q[
+			push @html_method_code, without_packages q[
 	                        <tr class='cov-].$class.q['>
 	                        <td class="small">].$decoded_extra{file}.q[</td>
-	                        <td class="small">].$decoded_extra{line}.q[</td>
-	                        <td class="small">].$decoded_extra{offset}.q[</td>
+	                        <td class="number small">].$decoded_extra{line}.q[</td>
+	                        <td class="number small">].$decoded_extra{offset}.q[</td>
 	                        <!-- <td>].$decoded_extra{instruction}.q[</td> -->
 	                        <td style="min-width: 400px;"><code>] . codeformat($decoded_extra{code}) . q[</code></td>
 	                        </tr>
@@ -178,12 +186,12 @@ foreach my $type (sort reformat keys %types) {
 
 		my $class = $coverage > 0.8 ? 'hit' : $coverage < 0.2 ? 'miss' : 'half';
 
-		push @html_methods, q[
-			<tr class='cov-].$class.q['>
+		push @html_methods, without_packages q[
+			<tr>
 			<td>].$return.q[</td>
 			<td>].$method.q[</td>
 			<td>].$params  .q[<!--h=].$hits.q[,m=].$misses.q[-->]  .q[</td>
-			<td><a href='coverage/] . _hash($type) . q[.php#] . _hash($methodkey) . q['>]. percent($coverage) .q[</a></td>
+			<td class='medium number cov-].$class.q['><a href='coverage/] . _hash($type) . q[.php#] . _hash($methodkey) . q['>]. percent($coverage) .q[</a></td>
 			</tr>
 		];
 
@@ -225,9 +233,9 @@ foreach my $type (sort reformat keys %types) {
 		my $class = $coverage > 0.8 ? 'hit' : $coverage < 0.2 ? 'miss' : 'half';
 
 		push @html_overview, q[ <!-- ] . $type . q[ -->
-			<tr class='cov-].$class.q['>
+			<tr>
 			<td>].$type.q[</td>
-			<td><a href='#] . _hash($type) . q['>]. percent($coverage) .q[</a></td>
+			<td class='medium number cov-].$class.q['><a href='#] . _hash($type) . q['>]. percent($coverage) .q[</a></td>
 			</tr>
 		];
 	}
