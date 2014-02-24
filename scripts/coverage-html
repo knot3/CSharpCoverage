@@ -107,9 +107,35 @@ foreach my $line (@lines) {
 			my ($return, $type, $method, $params, $extra) = ($1,$2,$3,$4,$5);
 
 			$types{$type} ||= [];
-			push @{$types{$type}}, [ $hit, $return, $method, $params, $extra ];
+			push @{$types{$type}}, [ $hit, $return, $method, $params, {decode_extra($extra)} ];
 		}
 	}
+}
+
+foreach my $type (keys %types) {
+	my %entries_by_lines = ();
+	foreach my $entry (@{$types{$type}}) {
+		my ($ishit, $return, $method, $params, $extra) = @$entry;
+		next if $extra->{line} eq "-1";
+		my $line = $extra->{line};
+		$entries_by_lines{$line} ||= [];
+		push @{$entries_by_lines{$line}}, $entry;
+	}
+	my @entries = ();
+	foreach my $line (sort keys %entries_by_lines) {
+		my @line_entries = @{$entries_by_lines{$line}};
+		my $coverage = 0;
+		foreach my $entry (@line_entries) {
+			my ($ishit, $return, $method, $params, $extra) = @$entry;
+			$coverage += $ishit ? 1 : 0;
+		}
+		my $is_covered = $coverage > 0 ? 1 : 0;
+		my $main_entry = $line_entries[0];
+		$main_entry->[0] = $is_covered;
+		$main_entry->[4]->{instruction} = join(', ', map {'['.$_.']'} grep {!/(nop)|(ldloc V_0)/i} map {$_->[4]->{instruction}} @line_entries);
+		push @entries, $main_entry;
+	}
+	@{$types{$type}} = @entries;
 }
 
 my @html_overview = ();
@@ -126,11 +152,10 @@ foreach my $type (sort reformat keys %types) {
 	foreach my $entry (@{$types{$type}}) {
 		my ($ishit, $return, $method, $params, $extra) = @$entry;
 
-		my %decoded_extra = decode_extra($extra);
-		next if $decoded_extra{line} eq "-1";
+		$ishit = -1 if $extra->{instruction} =~ /^\s*?$/i;
 
-		if ($ishit) { $hit_lines{$decoded_extra{line}}++; }
-                else { $missed_lines{$decoded_extra{line}}++; }
+		if ($ishit == 1) { $hit_lines{$extra->{line}}++; }
+                elsif ($ishit == 0) { $missed_lines{$extra->{line}}++; }
 
 		my $signature = $return . ' ' . $method . '(' . $params . ')';
 		$methods{$signature} ||= [];
@@ -159,23 +184,24 @@ foreach my $type (sort reformat keys %types) {
 		foreach my $methodentry (@{$methods{$methodkey}}) {
 			my ($ishit, $_return, $_method, $_params, $extra) = @$methodentry;
 
-			my %decoded_extra = decode_extra($extra);
+			my %decoded_extra = %$extra;
 			next if $decoded_extra{line} eq "-1";
 
-			if ($ishit) { $hit_lines{$decoded_extra{line}}++; }
-	                else { $missed_lines{$decoded_extra{line}}++; }
+			if ($ishit == 1) { $hit_lines{$decoded_extra{line}}++; }
+	                elsif ($ishit == 0) { $missed_lines{$decoded_extra{line}}++; }
 			($return, $method, $params) = ($_return, $_method, $_params);
 
-			my $class = $ishit ? 'hit' : 'miss';
+			my $class = $ishit > 0 ? 'hit' : $ishit == 0 ? 'miss' : 'invalid';
 			push @html_method_code, without_packages q[
 	                        <tr class='cov-].$class.q['>
 	                        <td class="small">].$decoded_extra{file}.q[</td>
 	                        <td class="number small">].$decoded_extra{line}.q[</td>
 	                        <td class="number small">].$decoded_extra{offset}.q[</td>
-	                        <!-- <td>].$decoded_extra{instruction}.q[</td> -->
 	                        <td style="min-width: 400px;"><code>] . codeformat($decoded_extra{code}) . q[</code></td>
+	                        <td>].$decoded_extra{instruction}.q[</td>
 	                        </tr>
 	                ];
+#	                        <!-- <td>].$decoded_extra{instruction}.q[</td> -->
 		}
 
 		my $hits = scalar keys %hit_lines;
@@ -203,8 +229,8 @@ foreach my $type (sort reformat keys %types) {
 				<th>File</th>
 				<th>Line</th>
 				<th>Offset</th>
-				<!--<th>Instruction</th>-->
 				<th>Code</th>
+				<th>Instruction</th>
 			</tr>
                 ];
 		push @{$html_bytecode{$type}}, @html_method_code;
