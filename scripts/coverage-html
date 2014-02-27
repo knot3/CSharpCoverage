@@ -132,7 +132,7 @@ foreach my $type (keys %types) {
 		my $is_covered = $coverage > 0 ? 1 : 0;
 		my $main_entry = $line_entries[0];
 		$main_entry->[0] = $is_covered;
-		$main_entry->[4]->{instruction} = join(', ', map {'['.$_.']'} grep {!/(nop)|(ret)|(ldloc V_0)/i} map {$_->[4]->{instruction}} @line_entries);
+		$main_entry->[4]->{instruction} = join(', ', map {'['.$_.']'} grep {!/(nop)|(ret)|(ldloc V_)/i} map {$_->[4]->{instruction}} @line_entries);
 		push @entries, $main_entry;
 	}
 	@{$types{$type}} = @entries;
